@@ -139,11 +139,11 @@ src/
 | Тип | Назначение |
 | --- | --- |
 | `IProduct` | Товар: `id: string`, `description: string`, `image: string`, `title: string`, `category: string`, `price: number \| null`. `null` означает отсутствие цены. |
-| `TPayment` | `'card' \| 'cash' \| null`: способ оплаты; `null` — ещё не выбран. |
-| `IBuyer` | Данные покупателя: `payment: TPayment`, `email: string`, `phone: string`, `address: string`. |
+| `TPayment` | `'card' \| 'cash'`: допустимые способы оплаты без `null`. |
+| `IBuyer` | Данные покупателя: `payment: TPayment \| null`, `email: string`, `phone: string`, `address: string`. Здесь `null` означает, что способ оплаты ещё не выбран. |
 | `TBuyerErrors` | `Partial<Record<keyof IBuyer, string>>`: ошибки по отдельным полям. Отсутствие ключа означает отсутствие ошибки. |
 | `IProductsResponse` | Ответ `GET /product/`: `total: number`, `items: IProduct[]`. |
-| `TOrderRequest` | Тело заказа: все поля `IBuyer` (с обязательно выбранным способом оплаты), `total: number` и `items: string[]` — идентификаторы товаров. Построен из существующего `IBuyer`. |
+| `TOrderRequest` | Интерфейс, расширяющий `IBuyer`: поля покупателя, `total: number`, `items: string[]` (идентификаторы товаров). Перед отправкой заказа необходимо убедиться, что `payment` не равен `null`. |
 | `IOrderResponse` | Ответ `POST /order/`: `id: string` заказа и `total: number` — сумма покупки. |
 | `IProductsModel` | Публичный программный интерфейс каталога. |
 | `ICartModel` | Публичный программный интерфейс корзины. |
@@ -180,7 +180,7 @@ src/
 **Методы:**
 
 - `getItems(): IProduct[]` — получить копию списка товаров в корзине.
-- `addItem(item: IProduct): void` — добавить товар, если у него есть цена и он ещё не добавлен.
+- `addItem(item: IProduct): void` — добавить переданный товар без проверок цены или повторного добавления. Проверки выполнит Presenter.
 - `removeItem(item: IProduct): void` — удалить из корзины товар по `id` переданного товара.
 - `clear(): void` — удалить все товары из корзины.
 - `getTotal(): number` — вычислить общую стоимость товаров; отсутствие цены трактуется как 0 при суммировании.

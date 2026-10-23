@@ -15,12 +15,12 @@ export interface IProduct {
   price: number | null;
 }
 
-/** null означает, что покупатель ещё не выбрал способ оплаты. */
-export type TPayment = 'card' | 'cash' | null;
+/** Допустимые способы оплаты. */
+export type TPayment = 'card' | 'cash';
 
 /** Данные покупателя на этапе заполнения форм. */
 export interface IBuyer {
-  payment: TPayment;
+  payment: TPayment | null;
   email: string;
   phone: string;
   address: string;
@@ -35,12 +35,11 @@ export interface IProductsResponse {
   items: IProduct[];
 }
 
-/** Данные, отправляемые на POST /order/. У заказа оплата уже выбрана. */
-export type TOrderRequest = Omit<IBuyer, 'payment'> & {
-  payment: Exclude<TPayment, null>;
+/** Данные POST /order/. Поля покупателя проверяются перед отправкой заказа. */
+export interface TOrderRequest extends IBuyer {
   total: number;
-  items: IProduct['id'][];
-};
+  items: string[];
+}
 
 /** Ответ API на POST /order/. */
 export interface IOrderResponse {

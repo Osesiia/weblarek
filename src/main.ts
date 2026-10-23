@@ -34,7 +34,6 @@ const secondAvailableProduct = availableProducts[1];
 
 if (firstAvailableProduct) {
   cartModel.addItem(firstAvailableProduct);
-  cartModel.addItem(firstAvailableProduct); // Проверка отсутствия дублей.
   console.log('Корзина: товары после добавления', cartModel.getItems());
   console.log('Корзина: товар есть?', cartModel.hasItem(firstAvailableProduct.id));
   console.log('Корзина: количество товаров', cartModel.getCount());

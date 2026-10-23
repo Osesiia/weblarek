@@ -9,12 +9,8 @@ export class CartModel implements ICartModel {
     return [...this.items];
   }
 
-  /** Добавляет только доступный товар и не допускает повторного добавления. */
+  /** Добавляет переданный товар без проверок. Решение о добавлении принимает Presenter. */
   addItem(item: IProduct): void {
-    if (item.price === null || this.hasItem(item.id)) {
-      return;
-    }
-
     this.items.push(item);
   }
 
