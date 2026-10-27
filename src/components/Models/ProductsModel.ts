@@ -1,31 +1,32 @@
 import type { IProduct, IProductsModel } from '../../types';
+import type { IEvents } from '../base/Events';
+import { appEvents } from '../../utils/appEvents';
 
-/** Хранит каталог товаров и товар, открытый для подробного просмотра. */
+/** Хранит каталог товаров и товар, выбранный для подробного просмотра. */
 export class ProductsModel implements IProductsModel {
   private items: IProduct[] = [];
   private preview: IProduct | null = null;
 
-  /** Сохраняет каталог. */
+  constructor(private readonly events: IEvents) {}
+
   setItems(items: IProduct[]): void {
     this.items = [...items];
+    this.events.emit(appEvents.catalogChanged);
   }
 
-  /** Возвращает копию массива товаров, чтобы нельзя было изменить его снаружи. */
   getItems(): IProduct[] {
     return [...this.items];
   }
 
-  /** Возвращает товар по id, либо undefined, если он не найден. */
   getItemById(id: IProduct['id']): IProduct | undefined {
     return this.items.find((item) => item.id === id);
   }
 
-  /** Устанавливает товар для подробного просмотра, null — закрыть просмотр. */
   setPreview(item: IProduct | null): void {
     this.preview = item;
+    this.events.emit(appEvents.previewChanged);
   }
 
-  /** Возвращает выбранный товар или null. */
   getPreview(): IProduct | null {
     return this.preview;
   }

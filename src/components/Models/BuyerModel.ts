@@ -1,4 +1,6 @@
 import type { IBuyer, IBuyerModel, TBuyerErrors } from '../../types';
+import type { IEvents } from '../base/Events';
+import { appEvents } from '../../utils/appEvents';
 
 const EMPTY_BUYER: IBuyer = {
   payment: null,
@@ -7,29 +9,28 @@ const EMPTY_BUYER: IBuyer = {
   address: '',
 };
 
-/** Хранит сведения о покупателе и проверяет заполнение полей. */
+/** Хранит сведения о покупателе и возвращает ошибки заполнения. */
 export class BuyerModel implements IBuyerModel {
   private data: IBuyer = { ...EMPTY_BUYER };
 
-  /** Обновляет лишь переданные поля, сохраняя остальные значения. */
+  constructor(private readonly events: IEvents) {}
+
   setData(data: Partial<IBuyer>): void {
     this.data = { ...this.data, ...data };
+    this.events.emit(appEvents.buyerChanged);
   }
 
-  /** Возвращает копию всех данных покупателя. */
   getData(): IBuyer {
     return { ...this.data };
   }
 
-  /** Сбрасывает все данные покупателя. */
   clear(): void {
     this.data = { ...EMPTY_BUYER };
+    this.events.emit(appEvents.buyerChanged);
   }
 
-  /** Возвращает сообщения только для незаполненных полей. */
   validate(): TBuyerErrors {
     const errors: TBuyerErrors = {};
-
     if (this.data.payment === null) {
       errors.payment = 'Выберите способ оплаты';
     }
@@ -42,7 +43,6 @@ export class BuyerModel implements IBuyerModel {
     if (!this.data.phone.trim()) {
       errors.phone = 'Укажите номер телефона';
     }
-
     return errors;
   }
 }

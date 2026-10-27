@@ -1,0 +1,8 @@
+/* Запрет прокрутки страницы, пока открыто модальное окно. */
+body:has(.modal_active) {
+  overflow: hidden;
+}
+
+.modal_active {
+  overflow: hidden;
+}

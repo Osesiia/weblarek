@@ -1,40 +1,43 @@
 import type { ICartModel, IProduct } from '../../types';
+import type { IEvents } from '../base/Events';
+import { appEvents } from '../../utils/appEvents';
 
-/** Хранит товары, которые пользователь выбрал для покупки. */
+/** Хранит выбранные товары без дублирования позиций. */
 export class CartModel implements ICartModel {
   private items: IProduct[] = [];
 
-  /** Возвращает копию списка товаров в корзине. */
+  constructor(private readonly events: IEvents) {}
+
   getItems(): IProduct[] {
     return [...this.items];
   }
 
-  /** Добавляет переданный товар без проверок. Решение о добавлении принимает Presenter. */
   addItem(item: IProduct): void {
+    if (item.price === null || this.hasItem(item.id)) return;
     this.items.push(item);
+    this.events.emit(appEvents.cartChanged);
   }
 
-  /** Удаляет товар из корзины по id переданного товара. */
   removeItem(item: IProduct): void {
+    if (!this.hasItem(item.id)) return;
     this.items = this.items.filter((product) => product.id !== item.id);
+    this.events.emit(appEvents.cartChanged);
   }
 
-  /** Полностью очищает корзину. */
   clear(): void {
+    if (this.items.length === 0) return;
     this.items = [];
+    this.events.emit(appEvents.cartChanged);
   }
 
-  /** Считает сумму в корзине, учитывая отсутствие цены у товара. */
   getTotal(): number {
     return this.items.reduce((total, item) => total + (item.price ?? 0), 0);
   }
 
-  /** Возвращает количество товаров. */
   getCount(): number {
     return this.items.length;
   }
 
-  /** Проверяет наличие товара по его id. */
   hasItem(id: IProduct['id']): boolean {
     return this.items.some((item) => item.id === id);
   }
