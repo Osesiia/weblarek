@@ -214,11 +214,15 @@ events.on(appEvents.contactsSubmit, () => {
       openView('success', success.render({ total: response.total }));
     })
     .catch(() => {
-      contactsForm.errors = ['Не удалось оформить заказ. Попробуйте ещё раз.'];
+      if (activeView === 'contacts') {
+        contactsForm.errors = ['Не удалось оформить заказ. Попробуйте ещё раз.'];
+      }
     })
     .finally(() => {
       isSubmitting = false;
-      if (activeView === 'contacts') renderForms();
+      if (activeView === 'contacts') {
+        contactsForm.valid = Object.keys(buyerModel.validate()).length === 0;
+      }
     });
 });
 events.on(appEvents.modalClose, () => {

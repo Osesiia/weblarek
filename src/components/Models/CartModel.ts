@@ -13,7 +13,6 @@ export class CartModel implements ICartModel {
   }
 
   addItem(item: IProduct): void {
-    if (item.price === null || this.hasItem(item.id)) return;
     this.items.push(item);
     this.events.emit(appEvents.cartChanged);
   }

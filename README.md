@@ -64,11 +64,11 @@ src/
 | Тип | Значение |
 | --- | --- |
 | `IProduct` | `id`, `description`, `image`, `title`, `category`: `string`, `price: number \| null`. |
-| `TPayment` | `'card' \| 'cash' \| null`, `null` до выбора. |
-| `IBuyer` | `payment: TPayment`, `address`, `email`, `phone`: `string`. |
+| `TPayment` | `'card' \| 'cash'` — допустимые способы оплаты. |
+| `IBuyer` | `payment: TPayment \| null`, `address`, `email`, `phone`: `string`. `null` означает отсутствие выбранной оплаты. |
 | `TBuyerErrors` | `Partial<Record<keyof IBuyer, string>>` — ошибки валидации. |
 | `IProductsResponse` | `{ total: number; items: IProduct[] }`. |
-| `TOrderRequest` | `IBuyer` с обязательной оплатой, `total: number`, `items: string[]` — ID товаров. |
+| `TOrderRequest` | Расширяет `IBuyer`: `total: number`, `items: string[]` — ID товаров. Поле `payment` типизируется как `TPayment \| null`; презентер перед запросом проверяет, что оплата выбрана. |
 | `IOrderResponse` | `{ id: string; total: number }`. |
 | `IApi`, `IProductsModel`, `ICartModel`, `IBuyerModel`, `IWebLarekApi` | Публичные контракты сетевого слоя и моделей. |
 | `ICatalogCardView` | `Pick<IProduct, 'title' \| 'price' \| 'image' \| 'category'>`. |
@@ -78,7 +78,7 @@ src/
 | `IModalView` | `content: HTMLElement`. |
 | `IBasketView` | `items: HTMLElement[]`, `total: number`, `count: number`. |
 | `IFormView` | `valid: boolean`, `errors: string[]`. |
-| `IOrderFormView` | Поля `IFormView`, `payment: TPayment`, `address: string`. |
+| `IOrderFormView` | Поля `IFormView`, `payment: TPayment \| null`, `address: string`. |
 | `IContactsFormView` | Поля `IFormView`, `email: string`, `phone: string`. |
 | `ISuccessView` | `total: number`. |
 | `TFormFieldChanged` | `{ field: string; value: string }`, событие текстового поля. |
@@ -122,7 +122,7 @@ src/
 Назначение: хранение выбранных товаров и расчёт итогов. Конструктор `constructor(events: IEvents)`; приватные поля `items: IProduct[]`, `events: IEvents`.
 
 - `getItems(): IProduct[]` копия корзины.
-- `addItem(item: IProduct): void` добавляет товар с ценой, запрещает дубликаты; при добавлении — `cart:changed`.
+- `addItem(item: IProduct): void` добавляет товар и генерирует `cart:changed`. Решение о допустимости товара и проверку дублей выполняет презентер.
 - `removeItem(item: IProduct): void` удаляет по ID; при удалении — `cart:changed`.
 - `clear(): void` очищает непустую корзину, `cart:changed`.
 - `getTotal(): number` общая цена.
@@ -176,7 +176,7 @@ src/
 
 ### `OrderForm extends Form<IOrderFormView>`
 
-Назначение: выбор оплаты, адрес. Конструктор `constructor(container: HTMLFormElement, onFieldChanged: (data: TFormFieldChanged)=>void, onSubmit: ()=>void, onPayment: (data:{payment: 'card'|'cash'})=>void)`; поля `addressInput: HTMLInputElement`, `paymentButtons: HTMLButtonElement[]`. Сеттеры `address: string`, `payment: TPayment` (класс `button_alt-active`), унаследованные `valid`, `errors`. Колбэки сообщают о выборе оплаты, изменении адреса и переходе далее.
+Назначение: выбор оплаты, адрес. Конструктор `constructor(container: HTMLFormElement, onFieldChanged: (data: TFormFieldChanged)=>void, onSubmit: ()=>void, onPayment: (data:{payment: 'card'|'cash'})=>void)`; поля `addressInput: HTMLInputElement`, `paymentButtons: HTMLButtonElement[]`. Сеттеры `address: string`, `payment: TPayment | null` (класс `button_alt-active`), унаследованные `valid`, `errors`. Колбэки сообщают о выборе оплаты, изменении адреса и переходе далее.
 
 ### `ContactsForm extends Form<IContactsFormView>`
 
@@ -215,7 +215,7 @@ src/
 
 Использован один презентер **без отдельного класса**, потому что приложение одностраничное. Он создаёт `EventEmitter`, три модели, HTTP-клиент, экземпляры View, затем регистрирует обработчики событий и запрашивает каталог через API. Каталог, счетчик корзины и поля формы обновляются после событий об изменениях данных; перед открытием модального окна данные для отображения подготавливаются из моделей. Карточки разных видов независимы и создаются из стартовых шаблонов HTML.
 
-Покупка: открыть карточку → добавить товар → открыть корзину → выбрать способ оплаты и ввести адрес → перейти в контакты → заполнить email/телефон → `POST /order/`. Только **после успешного ответа** очищаются CartModel и BuyerModel и показывается сумма из ответа сервера. При ошибке сети данные не теряются, можно повторить попытку. Повторный запрос блокируется флагом `isSubmitting`.
+Покупка: открыть карточку → добавить товар → открыть корзину → выбрать способ оплаты и ввести адрес → перейти в контакты → заполнить email/телефон → `POST /order/`. Только **после успешного ответа** очищаются CartModel и BuyerModel и показывается сумма из ответа сервера. При ошибке сети данные не теряются, сообщение об ошибке остаётся видимым, можно повторить попытку. Повторный запрос блокируется флагом `isSubmitting`.
 
 ## Проверка перед ревью
 
