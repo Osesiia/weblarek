@@ -6,8 +6,11 @@ import { EventEmitter } from './components/base/Events';
 import { ProductsModel } from './components/Models/ProductsModel';
 import { CartModel } from './components/Models/CartModel';
 import { BuyerModel } from './components/Models/BuyerModel';
+import { OrderStatusModel } from './components/Models/OrderStatusModel';
+import { CatalogStatusModel } from './components/Models/CatalogStatusModel';
 import { WebLarekApi } from './components/Communication/WebLarekApi';
-import { Page } from './components/View/Page';
+import { Catalog } from './components/View/Catalog';
+import { Header } from './components/View/Header';
 import { Modal } from './components/View/Modal';
 import { CatalogCard } from './components/View/CatalogCard';
 import { PreviewCard } from './components/View/PreviewCard';
@@ -16,20 +19,23 @@ import { Basket } from './components/View/Basket';
 import { OrderForm } from './components/View/OrderForm';
 import { ContactsForm } from './components/View/ContactsForm';
 import { Success } from './components/View/Success';
-import type { IProduct, TActiveView, TFormFieldChanged, TOrderRequest, TPayment } from './types';
+import type { TFormFieldChanged, TOrderRequest, TPayment } from './types';
 import { API_URL } from './utils/constants';
 import { appEvents, makeEventHandler } from './utils/appEvents';
 import { cloneTemplate, ensureElement } from './utils/utils';
 
-// Presenter: связывает события моделей и представлений. Сам не генерирует события.
+// Presenter не хранит состояние приложения: только зависимости и обработчики.
 const events = new EventEmitter();
 const productsModel = new ProductsModel(events);
 const cartModel = new CartModel(events);
 const buyerModel = new BuyerModel(events);
+const orderStatusModel = new OrderStatusModel(events);
+const catalogStatusModel = new CatalogStatusModel(events);
 const webLarekApi = new WebLarekApi(new Api(API_URL));
 
-const page = new Page(
-  ensureElement<HTMLElement>('.page__wrapper'),
+const catalog = new Catalog(ensureElement<HTMLElement>('.gallery'));
+const header = new Header(
+  ensureElement<HTMLElement>('.header'),
   makeEventHandler(events, appEvents.basketOpen)
 );
 const modal = new Modal(
@@ -40,11 +46,16 @@ const basket = new Basket(
   cloneTemplate<HTMLElement>('#basket'),
   makeEventHandler(events, appEvents.basketCheckout)
 );
+// Одна карточка превью, переиспользуемая для разных товаров.
+const previewCard = new PreviewCard(
+  cloneTemplate<HTMLElement>('#card-preview'),
+  makeEventHandler(events, appEvents.previewToggle)
+);
 const orderForm = new OrderForm(
   cloneTemplate<HTMLFormElement>('#order'),
   makeEventHandler<TFormFieldChanged>(events, appEvents.orderInput),
   makeEventHandler(events, appEvents.orderNext),
-  makeEventHandler<{ payment: Exclude<TPayment, null> }>(events, appEvents.orderPayment)
+  makeEventHandler<{ payment: TPayment }>(events, appEvents.orderPayment)
 );
 const contactsForm = new ContactsForm(
   cloneTemplate<HTMLFormElement>('#contacts'),
@@ -56,11 +67,9 @@ const success = new Success(
   makeEventHandler(events, appEvents.successClose)
 );
 
-let activeView: TActiveView = null;
-let isSubmitting = false;
-
-function openView(name: Exclude<TActiveView, null>, content: HTMLElement): void {
-  activeView = name;
+// Открытие модального окна — предусмотренное заданием исключение из
+// правила перерисовки View только по событию изменения модели.
+function showModal(content: HTMLElement): void {
   modal.content = content;
   modal.open();
 }
@@ -78,23 +87,7 @@ function renderCatalog(): void {
       price: item.price,
     });
   });
-  page.catalog = cards;
-}
-
-function createPreview(item: IProduct): HTMLElement {
-  const previewCard = new PreviewCard(
-    cloneTemplate<HTMLElement>('#card-preview'),
-    makeEventHandler(events, appEvents.previewToggle)
-  );
-  return previewCard.render({
-    title: item.title,
-    image: item.image,
-    category: item.category,
-    price: item.price,
-    description: item.description,
-    selected: cartModel.hasItem(item.id),
-    available: item.price !== null,
-  });
+  catalog.items = cards;
 }
 
 function renderBasket(): void {
@@ -105,14 +98,23 @@ function renderBasket(): void {
     );
     return card.render({ title: item.title, price: item.price, index: index + 1 });
   });
-  basket.render({ items: cards, total: cartModel.getTotal(), count: cartModel.getCount() });
+  basket.render({
+    items: cards,
+    total: cartModel.getTotal(),
+    valid: cartModel.getCount() > 0,
+  });
+  header.counter = cartModel.getCount();
 }
 
 function renderForms(): void {
   const buyer = buyerModel.getData();
   const errors = buyerModel.validate();
+  const orderStatus = orderStatusModel.getData();
   const orderErrors = [errors.payment, errors.address].filter((message): message is string => Boolean(message));
   const contactsErrors = [errors.email, errors.phone].filter((message): message is string => Boolean(message));
+  const visibleContactsErrors = orderStatus.error
+    ? [...contactsErrors, orderStatus.error]
+    : contactsErrors;
 
   orderForm.render({
     payment: buyer.payment,
@@ -123,28 +125,44 @@ function renderForms(): void {
   contactsForm.render({
     email: buyer.email,
     phone: buyer.phone,
-    errors: contactsErrors,
-    valid: contactsErrors.length === 0 && !isSubmitting,
+    errors: visibleContactsErrors,
+    valid: contactsErrors.length === 0 && orderStatus.status !== 'submitting',
   });
 }
 
-// Изменения в моделях — единственный источник обновлений интерфейса.
+// Перерисовка существующих представлений — только по событиям моделей.
 events.on(appEvents.catalogChanged, renderCatalog);
+events.on(appEvents.catalogStatusChanged, () => {
+  catalog.error = catalogStatusModel.getError();
+});
 events.on(appEvents.previewChanged, () => {
   const item = productsModel.getPreview();
-  if (item) openView('preview', createPreview(item));
+  if (!item) return;
+  showModal(previewCard.render({
+    title: item.title,
+    image: item.image,
+    category: item.category,
+    price: item.price,
+    description: item.description,
+    selected: cartModel.hasItem(item.id),
+    available: item.price !== null,
+  }));
 });
 events.on(appEvents.cartChanged, () => {
-  page.counter = cartModel.getCount();
-  if (activeView === 'basket') renderBasket();
-  if (activeView === 'preview') {
-    const item = productsModel.getPreview();
-    if (item) modal.content = createPreview(item);
-  }
+  renderBasket();
+  const item = productsModel.getPreview();
+  if (item && item.price !== null) previewCard.selected = cartModel.hasItem(item.id);
 });
 events.on(appEvents.buyerChanged, renderForms);
+events.on(appEvents.orderStatusChanged, () => {
+  renderForms();
+  const orderStatus = orderStatusModel.getData();
+  if (orderStatus.status === 'success' && orderStatus.total !== null) {
+    showModal(success.render({ total: orderStatus.total }));
+  }
+});
 
-// Действия пользователя: Presenter обращается только к публичным методам Model и View.
+// Обработчики пользовательских действий меняют Model, а не перерисовывают View.
 events.on<{ id: string }>(appEvents.cardSelected, ({ id }) => {
   const item = productsModel.getItemById(id);
   if (item) productsModel.setPreview(item);
@@ -158,11 +176,10 @@ events.on(appEvents.previewToggle, () => {
     cartModel.addItem(item);
   }
   modal.close();
-  activeView = null;
+  productsModel.setPreview(null);
 });
 events.on(appEvents.basketOpen, () => {
-  renderBasket();
-  openView('basket', basket.render());
+  showModal(basket.render());
 });
 events.on<{ id: string }>(appEvents.basketRemove, ({ id }) => {
   const item = productsModel.getItemById(id);
@@ -170,10 +187,9 @@ events.on<{ id: string }>(appEvents.basketRemove, ({ id }) => {
 });
 events.on(appEvents.basketCheckout, () => {
   if (cartModel.getCount() === 0) return;
-  renderForms();
-  openView('order', orderForm.render());
+  showModal(orderForm.render());
 });
-events.on<{ payment: Exclude<TPayment, null> }>(appEvents.orderPayment, ({ payment }) => {
+events.on<{ payment: TPayment }>(appEvents.orderPayment, ({ payment }) => {
   buyerModel.setData({ payment });
 });
 events.on<TFormFieldChanged>(appEvents.orderInput, ({ field, value }) => {
@@ -182,15 +198,14 @@ events.on<TFormFieldChanged>(appEvents.orderInput, ({ field, value }) => {
 events.on(appEvents.orderNext, () => {
   const errors = buyerModel.validate();
   if (errors.payment || errors.address) return;
-  renderForms();
-  openView('contacts', contactsForm.render());
+  showModal(contactsForm.render());
 });
 events.on<TFormFieldChanged>(appEvents.contactsInput, ({ field, value }) => {
   if (field === 'email') buyerModel.setData({ email: value });
   if (field === 'phone') buyerModel.setData({ phone: value });
 });
 events.on(appEvents.contactsSubmit, () => {
-  if (isSubmitting || cartModel.getCount() === 0) return;
+  if (orderStatusModel.getData().status === 'submitting' || cartModel.getCount() === 0) return;
   const errors = buyerModel.validate();
   if (Object.keys(errors).length > 0) return;
   const buyer = buyerModel.getData();
@@ -205,40 +220,26 @@ events.on(appEvents.contactsSubmit, () => {
     items: cartModel.getItems().map((item) => item.id),
   };
 
-  isSubmitting = true;
-  contactsForm.valid = false;
+  orderStatusModel.start();
   webLarekApi.createOrder(order)
     .then((response) => {
       cartModel.clear();
       buyerModel.clear();
-      openView('success', success.render({ total: response.total }));
+      orderStatusModel.succeed(response.total);
     })
     .catch(() => {
-      if (activeView === 'contacts') {
-        contactsForm.errors = ['Не удалось оформить заказ. Попробуйте ещё раз.'];
-      }
-    })
-    .finally(() => {
-      isSubmitting = false;
-      if (activeView === 'contacts') {
-        contactsForm.valid = Object.keys(buyerModel.validate()).length === 0;
-      }
+      orderStatusModel.fail('Не удалось оформить заказ. Попробуйте ещё раз.');
     });
 });
 events.on(appEvents.modalClose, () => {
   modal.close();
-  activeView = null;
   productsModel.setPreview(null);
-  // Закрытие окна не изменяет данные корзины и покупателя.
 });
 events.on(appEvents.successClose, () => {
   modal.close();
-  activeView = null;
+  orderStatusModel.clear();
 });
 
-page.counter = cartModel.getCount();
 webLarekApi.getProducts()
   .then((response) => productsModel.setItems(response.items))
-  .catch(() => {
-    page.error = 'Не удалось загрузить каталог товаров';
-  });
+  .catch(() => catalogStatusModel.setError('Не удалось загрузить каталог товаров'));

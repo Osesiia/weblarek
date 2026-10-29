@@ -3,6 +3,8 @@ import type { IEvents } from '../components/base/Events';
 /** Единый словарь названий событий MVP. */
 export const appEvents = {
   catalogChanged: 'catalog:changed',
+  catalogStatusChanged: 'catalog-status:changed',
+  orderStatusChanged: 'order-status:changed',
   previewChanged: 'preview:changed',
   cartChanged: 'cart:changed',
   buyerChanged: 'buyer:changed',

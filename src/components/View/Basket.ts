@@ -3,7 +3,7 @@ import type { IBasketView } from '../../types';
 import { ensureElement } from '../../utils/utils';
 import { formatPrice } from './Card';
 
-/** Список покупок с итогом и кнопкой перехода к оформлению. */
+/** Список товаров и кнопка перехода к оформлению. */
 export class Basket extends Component<IBasketView> {
   private readonly listElement: HTMLElement;
   private readonly totalElement: HTMLElement;
@@ -31,7 +31,8 @@ export class Basket extends Component<IBasketView> {
     this.totalElement.textContent = formatPrice(value);
   }
 
-  set count(value: number) {
-    this.checkoutButton.disabled = value === 0;
+  /** Сеттер получает готовую валидность, не вычисляет её по числу товаров. */
+  set valid(value: boolean) {
+    this.checkoutButton.disabled = !value;
   }
 }

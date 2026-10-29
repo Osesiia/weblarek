@@ -90,10 +90,13 @@ export type IBasketCardView = Pick<IProduct, 'title' | 'price'> & { index: numbe
 export interface IBasketView {
   items: HTMLElement[];
   total: number;
-  count: number;
+  valid: boolean;
 }
-export interface IPageView {
-  catalog: HTMLElement[];
+export interface ICatalogView {
+  items: HTMLElement[];
+  error: string;
+}
+export interface IHeaderView {
   counter: number;
 }
 export interface IModalView {
@@ -118,4 +121,16 @@ export interface TFormFieldChanged {
   field: string;
   value: string;
 }
-export type TActiveView = 'preview' | 'basket' | 'order' | 'contacts' | 'success' | null;
+/** Статус отправки заказа, хранится в отдельной Model. */
+export type TOrderStatus = {
+  status: 'idle' | 'submitting' | 'error' | 'success';
+  error: string;
+  total: number | null;
+};
+export interface IOrderStatusModel {
+  getData(): TOrderStatus;
+  start(): void;
+  fail(message: string): void;
+  succeed(total: number): void;
+  clear(): void;
+}
