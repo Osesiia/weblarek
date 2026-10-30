@@ -136,3 +136,11 @@ export function createElement<
     }
     return element;
 }
+
+const PRICE_UNIT = 'синапсов';
+
+/** Форматирование цены для любого компонента интерфейса. */
+export function formatPrice(value: number | null): string {
+    if (value === null) return 'Бесценно';
+    return `${new Intl.NumberFormat('ru-RU').format(value)} ${PRICE_UNIT}`;
+}

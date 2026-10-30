@@ -19,7 +19,7 @@ import { Basket } from './components/View/Basket';
 import { OrderForm } from './components/View/OrderForm';
 import { ContactsForm } from './components/View/ContactsForm';
 import { Success } from './components/View/Success';
-import type { TFormFieldChanged, TOrderRequest, TPayment } from './types';
+import type { IPreviewView, IProduct, TFormFieldChanged, TOrderRequest, TPayment } from './types';
 import { API_URL } from './utils/constants';
 import { appEvents, makeEventHandler } from './utils/appEvents';
 import { cloneTemplate, ensureElement } from './utils/utils';
@@ -106,6 +106,17 @@ function renderBasket(): void {
   header.counter = cartModel.getCount();
 }
 
+/** Выбирает текст и доступность кнопки по данным моделей, а не во View. */
+function getPreviewButtonData(item: IProduct): Pick<IPreviewView, 'buttonText' | 'buttonDisabled'> {
+  if (item.price === null) {
+    return { buttonText: 'Недоступно', buttonDisabled: true };
+  }
+  return {
+    buttonText: cartModel.hasItem(item.id) ? 'Удалить из корзины' : 'Купить',
+    buttonDisabled: false,
+  };
+}
+
 function renderForms(): void {
   const buyer = buyerModel.getData();
   const errors = buyerModel.validate();
@@ -144,14 +155,17 @@ events.on(appEvents.previewChanged, () => {
     category: item.category,
     price: item.price,
     description: item.description,
-    selected: cartModel.hasItem(item.id),
-    available: item.price !== null,
+    ...getPreviewButtonData(item),
   }));
 });
 events.on(appEvents.cartChanged, () => {
   renderBasket();
   const item = productsModel.getPreview();
-  if (item && item.price !== null) previewCard.selected = cartModel.hasItem(item.id);
+  if (item) {
+    const { buttonText, buttonDisabled } = getPreviewButtonData(item);
+    previewCard.buttonText = buttonText;
+    previewCard.buttonDisabled = buttonDisabled;
+  }
 });
 events.on(appEvents.buyerChanged, renderForms);
 events.on(appEvents.orderStatusChanged, () => {
@@ -232,7 +246,7 @@ events.on(appEvents.contactsSubmit, () => {
     });
 });
 events.on(appEvents.modalClose, () => {
-  modal.close();
+  // Само окно закрывает Modal; здесь сбрасываем только состояние модели.
   productsModel.setPreview(null);
 });
 events.on(appEvents.successClose, () => {

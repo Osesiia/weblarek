@@ -1,7 +1,7 @@
 import { Component } from '../base/Component';
 import type { ISuccessView } from '../../types';
 import { ensureElement } from '../../utils/utils';
-import { formatPrice } from './Card';
+import { formatPrice } from '../../utils/utils';
 
 /** Информация об успешно оформленном заказе. */
 export class Success extends Component<ISuccessView> {

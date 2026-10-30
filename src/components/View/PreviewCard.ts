@@ -34,12 +34,12 @@ export class PreviewCard extends Card<IPreviewView> {
     this.descriptionElement.textContent = value;
   }
 
-  set selected(value: boolean) {
-    this.actionButton.textContent = value ? 'Удалить из корзины' : 'Купить';
+  /** Текст кнопки приходит из презентера; View не решает, что написано. */
+  set buttonText(value: string) {
+    this.actionButton.textContent = value;
   }
 
-  set available(value: boolean) {
-    this.actionButton.disabled = !value;
-    if (!value) this.actionButton.textContent = 'Недоступно';
+  set buttonDisabled(value: boolean) {
+    this.actionButton.disabled = value;
   }
 }

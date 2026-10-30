@@ -1,7 +1,7 @@
 import { Component } from '../base/Component';
 import type { IBasketView } from '../../types';
 import { ensureElement } from '../../utils/utils';
-import { formatPrice } from './Card';
+import { formatPrice } from '../../utils/utils';
 
 /** Список товаров и кнопка перехода к оформлению. */
 export class Basket extends Component<IBasketView> {

@@ -48,7 +48,7 @@ src/
   utils/
     constants.ts            API_URL, CDN_URL, categoryMap
     appEvents.ts            Названия и фабрика обработчиков событий
-    utils.ts                Работа с DOM и шаблонами
+    utils.ts                Работа с DOM, шаблонами и форматирование цен
   scss/
     styles.scss             Стили стартового набора
     sprint9.scss            Блокировка прокрутки при открытом модальном окне
@@ -76,7 +76,7 @@ src/
 | `IOrderResponse` | `{ id: string; total: number }`. |
 | `IApi`, `IProductsModel`, `ICartModel`, `IBuyerModel`, `IWebLarekApi` | Публичные контракты сетевого слоя и моделей. |
 | `ICatalogCardView` | `Pick<IProduct, 'title' \| 'price' \| 'image' \| 'category'>`. |
-| `IPreviewView` | Поля каталожной карточки и `description: string`, `selected: boolean`, `available: boolean`. |
+| `IPreviewView` | Поля каталожной карточки и `description: string`, `buttonText: string`, `buttonDisabled: boolean` — текст и доступность кнопки вычисляет презентер. |
 | `IBasketCardView` | `title: string`, `price: number \| null`, `index: number`. |
 | `ICatalogView` | `items: HTMLElement[]` — DOM-карточки каталога. |
 | `IHeaderView` | `counter: number` — счётчик корзины. |
@@ -166,11 +166,11 @@ src/
 
 ### `Modal extends Component<IModalView>`
 
-Назначение: универсальная оболочка для любого компонента, не имеет дочерних классов. Конструктор `constructor(container: HTMLElement, onClose: () => void)`; поля `modalContent: HTMLElement`, `closeButton: HTMLButtonElement`. Сеттер `content: HTMLElement` меняет содержимое. Методы `open(): void` и `close(): void` добавляют/снимают `modal_active`; `close` очищает содержимое. Клик по крестику и по фону вызывает `onClose`. Прокрутка блокируется стилем `sprint9.scss`.
+Назначение: универсальная оболочка для любого компонента, не имеет дочерних классов. Конструктор `constructor(container: HTMLElement, onClose: () => void)`; поля `modalContent: HTMLElement`, `closeButton: HTMLButtonElement`. Сеттер `content: HTMLElement` меняет содержимое. Методы `open(): void` и `close(): void` добавляют/снимают `modal_active`; `close` очищает содержимое. Клик по крестику и по фону вызывает собственный `close()` компонента, затем `onClose` уведомляет презентер для сброса выбора в модели. Прокрутка блокируется стилем `sprint9.scss`.
 
 ### `Card<T> extends Component<T>` (абстрактный класс)
 
-Назначение: общие поля трёх шаблонов карточек. Конструктор `protected constructor(container: HTMLElement)`; поля `titleElement: HTMLElement` и `priceElement: HTMLElement`. Сеттеры `title: string`, `price: number | null`. В базовом классе нет элементов изображения и категории: они отсутствуют у карточки корзины. Экспортируемая функция `formatPrice(value: number | null): string` форматирует цену.
+Назначение: общие поля трёх шаблонов карточек. Конструктор `protected constructor(container: HTMLElement)`; поля `titleElement: HTMLElement` и `priceElement: HTMLElement`. Сеттеры `title: string`, `price: number | null`. В базовом классе нет элементов изображения и категории: они отсутствуют у карточки корзины. Для форматирования цены использует утилиту `formatPrice(value: number | null): string` из `src/utils/utils.ts`.
 
 ### `CardMedia` (вспомогательный класс композиции)
 
@@ -182,7 +182,7 @@ src/
 
 ### `PreviewCard extends Card<IPreviewView>`
 
-Назначение: подробности товара. Конструктор `constructor(container: HTMLElement, onToggle: () => void)`; поля `media: CardMedia`, `descriptionElement: HTMLElement`, `actionButton: HTMLButtonElement`. Дополнительные сеттеры `title: string`, `image: string`, `category: string`, `description: string`, `selected: boolean` (Купить/Удалить из корзины), `available: boolean` (блокирует и пишет «Недоступно» для товара без цены). Клик вызывает `onToggle`.
+Назначение: подробности товара. Конструктор `constructor(container: HTMLElement, onToggle: () => void)`; поля `media: CardMedia`, `descriptionElement: HTMLElement`, `actionButton: HTMLButtonElement`. Дополнительные сеттеры `title: string`, `image: string`, `category: string`, `description: string`, `buttonText: string` (только отображает переданную строку), `buttonDisabled: boolean` (только блокирует/разблокирует кнопку). Решение «Купить», «Удалить из корзины» или «Недоступно» принимает презентер на основании моделей. Клик вызывает `onToggle`.
 
 ### `BasketCard extends Card<IBasketCardView>`
 
@@ -230,14 +230,14 @@ src/
 | `order:next` | OrderForm | — | При валидном шаге открывает ContactsForm. |
 | `contacts:input` | ContactsForm | `{field: string, value: string}` | Обновляет email или телефон. |
 | `contacts:submit` | ContactsForm | — | Проверяет заказ и отправляет POST, после успеха очищает модели и открывает Success. |
-| `modal:close` | Modal | — | Закрывает модальное окно. |
+| `modal:close` | Modal | — | Окно уже закрылось самостоятельно; презентер сбрасывает выбранный товар в ProductsModel. |
 | `success:close` | Success | — | Закрывает успешное оформление. |
 
 Все генерируемые события обрабатываются в `main.ts`.
 
 ## Презентер (`src/main.ts`)
 
-Использован один презентер **без отдельного класса**, потому что приложение одностраничное. Он создаёт `EventEmitter`, модели данных (в том числе состояния сетевых запросов), HTTP-клиент и экземпляры View, затем регистрирует обработчики событий и запрашивает каталог через API. Каталог, счётчик корзины, корзина и формы обновляются **при обработке событий моделей**. При открытии модального окна презентер передаёт подготовленный компонент. `PreviewCard` создаётся один раз и повторно используется для каждого выбранного товара; остальные карточки создаются из исходных HTML-шаблонов. В презентере нет локального `activeView` или `isSubmitting`.
+Использован один презентер **без отдельного класса**, потому что приложение одностраничное. Он создаёт `EventEmitter`, модели данных (в том числе состояния сетевых запросов), HTTP-клиент и экземпляры View, затем регистрирует обработчики событий и запрашивает каталог через API. Каталог, счётчик корзины, корзина и формы обновляются **при обработке событий моделей**. При открытии модального окна презентер передаёт подготовленный компонент. `PreviewCard` создаётся один раз и повторно используется для каждого выбранного товара; остальные карточки создаются из исходных HTML-шаблонов. В презентере нет локального `activeView` или `isSubmitting`. Функция `getPreviewButtonData` вычисляет текст и доступность кнопки превью на основании цены и содержимого корзины, а `PreviewCard` только отображает результат.
 
 Покупка: открыть карточку → добавить товар → открыть корзину → выбрать способ оплаты и ввести адрес → перейти в контакты → заполнить email/телефон → `POST /order/`. Только **после успешного ответа** очищаются CartModel и BuyerModel и показывается сумма из ответа сервера. При ошибке сети данные не теряются, сообщение об ошибке остаётся видимым, можно повторить попытку. Повторный запрос блокируется статусом `submitting` из `OrderStatusModel`; при неудаче статус сменяется на `error` и кнопка повторной отправки становится доступна, если поля заполнены.
 

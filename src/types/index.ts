@@ -83,8 +83,8 @@ export interface IWebLarekApi {
 // Новые типы слоя View, основанные на уже объявленных типах 8-го спринта.
 export type ICatalogCardView = Pick<IProduct, 'title' | 'price' | 'image' | 'category'>;
 export type IPreviewView = Pick<IProduct, 'title' | 'price' | 'image' | 'category' | 'description'> & {
-  selected: boolean;
-  available: boolean;
+  buttonText: string;
+  buttonDisabled: boolean;
 };
 export type IBasketCardView = Pick<IProduct, 'title' | 'price'> & { index: number };
 export interface IBasketView {

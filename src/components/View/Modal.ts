@@ -11,9 +11,13 @@ export class Modal extends Component<IModalView> {
     super(container);
     this.modalContent = ensureElement<HTMLElement>('.modal__content', container);
     this.closeButton = ensureElement<HTMLButtonElement>('.modal__close', container);
-    this.closeButton.addEventListener('click', () => onClose());
+    const handleClose = (): void => {
+      this.close();
+      onClose(); // Уведомляем презентер только для сброса выбранного товара в Model.
+    };
+    this.closeButton.addEventListener('click', handleClose);
     container.addEventListener('click', (event: MouseEvent) => {
-      if (event.target === container) onClose();
+      if (event.target === container) handleClose();
     });
   }
 

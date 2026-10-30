@@ -1,13 +1,5 @@
 import { Component } from '../base/Component';
-import { ensureElement } from '../../utils/utils';
-
-const PRICE_UNIT = 'синапсов';
-
-/** Единое форматирование цен для разных компонентов. */
-export function formatPrice(value: number | null): string {
-  if (value === null) return 'Бесценно';
-  return `${new Intl.NumberFormat('ru-RU').format(value)} ${PRICE_UNIT}`;
-}
+import { ensureElement, formatPrice } from '../../utils/utils';
 
 /** Только общие для всех трёх шаблонов карточек поля: название и цена. */
 export abstract class Card<T extends object> extends Component<T> {
